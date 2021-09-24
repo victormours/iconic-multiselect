@@ -604,3 +604,5 @@ class IconicMultiSelect {
     }
   }
 }
+
+export default IconicMultiSelect;

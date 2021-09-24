@@ -13,17 +13,12 @@ class IconicMultiSelect {
   #data;
   #domElements;
   #event = () => {};
-  #itemTemplate;
   #multiselect;
-  #noData;
   #noResults;
   #options = [];
   #placeholder;
   #selectContainer;
   #selectedOptions = [];
-  #tagTemplate;
-  #textField;
-  #valueField;
 
   #cross = `
     <svg
@@ -42,24 +37,14 @@ class IconicMultiSelect {
 
   /**
    * Iconic Multiselect constructor.
-   * @param { Object[] } data - Array of objects.
-   * @param { string } noData - Defines the message when there is no data input.
    * @param { string } noResults - Defines the message when there is no result if options are filtered.
    * @param { string } placeholder -  Defines the placeholder's text.
    * @param { string } select - DOM element to be selected. It must be a HTML Select tag - https://developer.mozilla.org/en-US/docs/Web/HTML/Element/select
-   * @param { string } textField - Field to select in the object for the text.
-   * @param { string } valueField - Field to select in the object for the value.
    */
-  constructor({ data, itemTemplate, noData, noResults, placeholder, select, tagTemplate, textField, valueField }) {
-    this.#data = data ?? [];
-    this.#itemTemplate = itemTemplate ?? null;
-    this.#noData = noData ?? "No data found.";
+  constructor({ noResults, placeholder, select }) {
     this.#noResults = noResults ?? "No results found.";
     this.#placeholder = placeholder ?? "Select...";
     this.#selectContainer = document.querySelector(select);
-    this.#tagTemplate = tagTemplate ?? null;
-    this.#textField = textField ?? null;
-    this.#valueField = valueField ?? null;
   }
 
   /**
@@ -67,14 +52,15 @@ class IconicMultiSelect {
    * @public
    */
   init() {
-    if (this.#selectContainer && this.#selectContainer.nodeName === "SELECT") {
-      if (this.#itemTemplate && this.#data.length === 0)
-        throw new Error("itemTemplate must be initialized with data from the component settings");
+    if (this.#selectContainer.nodeName === "SELECT") {
 
-      this.#options = this.#data.length > 0 ? this.#getDataFromSettings() : this.#getDataFromSelectTag();
+      this.#options = this.#getDataFromSelectTag();
 
+      // TODO: load the list of selected elements from the select tag
       this.#renderMultiselect();
       this.#renderOptionsList();
+      this.#handleClearSelectionBtn();
+      this.#handlePlaceholder();
 
       this.#domElements = {
         clear: this.#multiselect.querySelector(`.multiselect__clear-btn`),
@@ -100,7 +86,7 @@ class IconicMultiSelect {
         },
       };
 
-      this.#enableEventListenners();
+      this.#enableEventListeners();
     } else {
       throw new Error(`The selector '${element}' did not select any valid select tag.`);
     }
@@ -125,9 +111,8 @@ class IconicMultiSelect {
    * @private
    */
   #addOptionToList(option, index) {
-    const html = `<span class="multiselect__selected" data-value="${option.value}">${
-      this.#tagTemplate ? this.#processTemplate(this.#tagTemplate, index) : option.text
-    }<span class="multiselect__remove-btn">${this.#cross}</span></span>`;
+    const html = `<span class="multiselect__selected" data-value="${option.value}">${option.text}
+      <span class="multiselect__remove-btn">${this.#cross}</span></span>`;
 
     this.#domElements.input.insertAdjacentHTML("beforebegin", html);
 
@@ -182,7 +167,7 @@ class IconicMultiSelect {
    * Enables all main event listenners.
    * @private
    */
-  #enableEventListenners() {
+  #enableEventListeners() {
     document.addEventListener("mouseup", ({ target }) => {
       if (!this.#multiselect.contains(target)) {
         this.#filterOptions("");
@@ -237,7 +222,7 @@ class IconicMultiSelect {
     if (this.#domElements.options.list.length > 0) {
       for (let i = 0; i < this.#domElements.options.list.length; i++) {
         const el = this.#domElements.options.list[i];
-        const text = this.#itemTemplate ? this.#data[i][this.#textField] : el.textContent;
+        const text = el.textContent;
 
         if (text.toLowerCase().substring(0, valueLowerCase.length) === valueLowerCase) {
           this.#domElements.optionsContainerList.appendChild(el);
@@ -248,7 +233,7 @@ class IconicMultiSelect {
 
       const hasResults = this.#domElements.options.some(
         (el, index) =>
-          (this.#itemTemplate ? this.#data[index][this.#textField] : el.textContent)
+          el.textContent
             .toLowerCase()
             .substring(0, valueLowerCase.length) === valueLowerCase
       );
@@ -271,42 +256,9 @@ class IconicMultiSelect {
    * @private
    */
   #getDataFromSelectTag() {
-    const arr = [];
-    const { options } = this.#selectContainer;
-    for (let i = 0; i < options.length; i++) {
-      arr.push({
-        text: options[i].text,
-        value: options[i].value,
-      });
-    }
-    return arr;
-  }
-
-  /**
-   * Gets data from settings.
-   * @private
-   */
-  #getDataFromSettings() {
-    if (this.#data.length > 0 && this.#valueField && this.#textField) {
-      const isValueFieldValid = typeof this.#valueField === "string";
-      const isTextFieldValid = typeof this.#textField === "string";
-      const arr = [];
-
-      if (!isValueFieldValid || !isTextFieldValid) {
-        throw new Error("textField and valueField must be of type string");
-      }
-
-      for (let i = 0; i < this.#data.length; i++) {
-        const item = this.#data[i];
-        arr.push({
-          value: item[this.#valueField],
-          text: item[this.#textField],
-        });
-      }
-      return arr;
-    } else {
-      return null;
-    }
+    Array.from(this.#selectContainer.options).map(option => {
+      return { text: option.text, value: option.value }
+    });
   }
 
   /**
@@ -465,23 +417,6 @@ class IconicMultiSelect {
     }
   }
 
-  /**
-   * Process the custom template.
-   * @param { string } template
-   * @private
-   */
-  #processTemplate(template, index) {
-    let processedTemplate = template;
-    const objAttr = template.match(/\$\{(\w+)\}/g).map((e) => e.replace(/\$\{|\}/g, ""));
-
-    for (let i = 0; i < objAttr.length; i++) {
-      const attr = objAttr[i];
-      processedTemplate = processedTemplate.replace(`\$\{${attr}\}`, this.#data[index][attr] ?? "");
-    }
-
-    return processedTemplate;
-  }
-
   #removeAllArrowSelected() {
     const className = "arrow-selected";
     const target = this.#domElements.options.find((el) => el.classList.contains(className));
@@ -506,30 +441,7 @@ class IconicMultiSelect {
     const html = `
         <div class="multiselect__options">
           <ul>
-          ${
-            this.#options.length > 0 && !this.#itemTemplate
-              ? this.#options
-                  .map((option) => {
-                    return `
-              <li data-value="${option.value}">${option.text}</li>
-            `;
-                  })
-                  .join("")
-              : ""
-          }
-
-          ${
-            this.#options.length > 0 && this.#itemTemplate
-              ? this.#options
-                  .map((option, index) => {
-                    return `
-              <li data-value="${option.value}">${this.#processTemplate(this.#itemTemplate, index)}</li>
-            `;
-                  })
-                  .join("")
-              : ""
-          }
-          ${this.#showNoData(this.#options.length === 0)}
+            ${this.#options.map((option) => { return `<li data-value="${option.value}">${option.text}</li>` }).join("")}
           </ul>
         </div>
       `;
@@ -578,15 +490,6 @@ class IconicMultiSelect {
         (child.offsetTop - child.offsetHeight) -
         (parent.offsetHeight - (child.offsetHeight + (child.offsetHeight - child.clientHeight)));
     }
-  }
-
-  /**
-   * Shows a no data message.
-   * @param { boolean } condition
-   * @private
-   */
-  #showNoData(condition) {
-    return condition ? `<p class="multiselect__options--no-data">${this.#noData}</p>` : "";
   }
 
   /**

@@ -56,9 +56,20 @@ class IconicMultiSelect {
 
       this.#options = this.#getDataFromSelectTag();
 
-      // TODO: load the list of selected elements from the select tag
+      this.selectedOptions = this.#getSelectedOptionsFromSelectTag();
+
       this.#renderMultiselect();
       this.#renderOptionsList();
+
+      for (let i = 0; i < this.selectedOptions.length; i++) {
+        const option = this.#selectedOptions[i];
+
+        const optionElement = this.#domElements.find((el) => (el.value == option.value));
+        optionElement.classList.add(`multiselect__options--selected`);
+
+        this.#addOptionToList(option, i);
+      };
+
       this.#handleClearSelectionBtn();
       this.#handlePlaceholder();
 
@@ -75,13 +86,6 @@ class IconicMultiSelect {
               if (callbackFn(node)) return node;
             }
             return undefined;
-          },
-          some: function (callbackFn) {
-            for (let i = 0; i < this.list.length; i++) {
-              const node = this.list[i];
-              if (callbackFn(node, i)) return true;
-            }
-            return false;
           },
         },
       };
@@ -231,7 +235,7 @@ class IconicMultiSelect {
         }
       }
 
-      const hasResults = this.#domElements.options.some(
+      const hasResults = Array.from(this.#domElements.options.list).some(
         (el, index) =>
           el.textContent
             .toLowerCase()
@@ -252,11 +256,21 @@ class IconicMultiSelect {
   }
 
   /**
-   * Gets data from select tag.
+   * Gets options from select tag.
    * @private
    */
   #getDataFromSelectTag() {
     Array.from(this.#selectContainer.options).map(option => {
+      return { text: option.text, value: option.value }
+    });
+  }
+
+  /**
+   * Gets selected options from select tag.
+   * @private
+   */
+  #getSelectedOptionsFromSelectTag() {
+    Array.from(this.#selectContainer.options).filter((o) => o.selected).map(option => {
       return { text: option.text, value: option.value }
     });
   }

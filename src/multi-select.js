@@ -56,7 +56,7 @@ class IconicMultiSelect {
 
       this.options = this.#getDataFromSelectTag();
 
-      this.selectedOptions = this.#getSelectedOptionsFromSelectTag();
+      this.#selectedOptions = this.#getSelectedOptionsFromSelectTag();
 
       this.#renderMultiselect();
       this.#renderOptionsList();
